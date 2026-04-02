@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bangladesh Weather Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .weather-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .weather-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(31, 38, 135, 0.2);
+        }
+        
+        .temperature-display {
+    font-size: 5rem;
+    font-weight: 300;
+    background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+    background-clip: text;
+    -webkit-background-clip: text; /* WebKit support */
+    color: transparent;
+    -webkit-text-fill-color: transparent; /* WebKit support */
+}
+
+        
+        .weather-icon {
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .map-container {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+        
+        .search-box {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .forecast-item {
+            transition: all 0.3s ease;
+        }
+        
+        .forecast-item:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(10px);
+            border-radius: 15px !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+        }
+        
+        .leaflet-popup-tip {
+            background: rgba(255, 255, 255, 0.9) !important;
+        }
+        
+        .sun-animation {
+            animation: pulse 2s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { opacity: 0.8; }
+            to { opacity: 1; }
+        }
+        
+        .rain-animation {
+            position: relative;
+        }
+        
+        .rain-animation::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><line x1="20" y1="10" x2="10" y2="30" stroke="%23a0c4ff" stroke-width="2"/><line x1="40" y1="10" x2="30" y2="30" stroke="%23a0c4ff" stroke-width="2"/><line x1="60" y1="10" x2="50" y2="30" stroke="%23a0c4ff" stroke-width="2"/><line x1="80" y1="10" x2="70" y2="30" stroke="%23a0c4ff" stroke-width="2"/></svg>');
+            opacity: 0;
+            animation: rain 1s linear infinite;
+        }
+        
+        @keyframes rain {
+            0% { transform: translateY(-20px); opacity: 0; }
+            10% { opacity: 0.5; }
+            100% { transform: translateY(100px); opacity: 0; }
+        }
+        
+        .bg-gradient-weather {
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+        }
+        
+        .bg-gradient-night {
+            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        }
+        
+        .weather-icon-big {
+            width: 120px;
+            height: 120px;
+        }
+        
+        .thunder-animation {
+            animation: thunder 4s linear infinite;
+        }
+        
+        @keyframes thunder {
+            0% { opacity: 0.8; }
+            1% { opacity: 1; transform: scale(1.1); }
+            2% { opacity: 0.8; transform: scale(1); }
+            8% { opacity: 0.8; }
+            9% { opacity: 1; transform: scale(1.1); }
+            10% { opacity: 0.8; transform: scale(1); }
+            100% { opacity: 0.8; }
+        }
+        
+        .cloud-animation {
+            animation: cloudMove 20s linear infinite alternate;
+        }
+        
+        @keyframes cloudMove {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(10px); }
+        }
+        
+        .snow-animation {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .snow-animation::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="15" cy="10" r="2" fill="%23ffffff"/><circle cx="35" cy="20" r="1.5" fill="%23ffffff"/><circle cx="55" cy="5" r="1.5" fill="%23ffffff"/><circle cx="75" cy="15" r="2" fill="%23ffffff"/><circle cx="95" cy="8" r="1.5" fill="%23ffffff"/></svg>');
+            opacity: 0;
+            animation: snow 3s linear infinite;
+        }
+        
+        @keyframes snow {
+            0% { transform: translateY(-20px); opacity: 0; }
+            10% { opacity: 0.8; }
+            100% { transform: translateY(100px); opacity: 0; }
+        }
+        
+        .fog-animation {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .fog-animation::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path d="M10,50 Q25,40 40,50 Q55,60 70,50 Q85,40 100,50" stroke="%23ffffff" stroke-width="5" fill="none" opacity="0.3"/><path d="M0,60 Q15,50 30,60 Q45,70 60,60 Q75,50 90,60" stroke="%23ffffff" stroke-width="5" fill="none" opacity="0.3"/></svg>');
+            opacity: 0.3;
+            animation: fogMove 30s linear infinite;
+        }
+        
+        @keyframes fogMove {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(100px); }
+        }
+        
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-logo-icon {
+            font-size: 2rem;
+            color: #3b82f6;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-weather">
+    <div class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="flex items-center justify-between mb-8">
+            <div class="header-logo">
+                <i class="fas fa-cloud-sun header-logo-icon"></i>
+                <h1 class="text-2xl font-bold text-gray-800">Bangladesh Weather</h1>
+            </div>
+            <div class="flex space-x-6">
+                <a href="#" class="text-gray-800 font-medium hover:text-blue-600 transition">Current</a>
+                <a href="#" class="text-gray-800 font-medium hover:text-blue-600 transition">Forecast</a>
+                <a href="#" class="px-4 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition">Map</a>
+            </div>
+        </header>
+        
+        <!-- Search Box -->
+        <div class="relative mb-8 max-w-2xl mx-auto">
+            <div class="search-box flex items-center px-6 py-3">
+                <i class="fas fa-search text-gray-500 mr-3"></i>
+                <input id="input" type="text" placeholder="Search for a city or division..."
+                        class="w-full bg-transparent outline-none text-gray-700 placeholder-gray-400">
+                <button id="submit-button" class="ml-4 px-4 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition">
+                    Search
+                </button>
+            </div>
+        </div>
+        
+        <!-- Map Container -->
+        <div class="map-container mb-8 relative">
+            <div id="map"></div>
+            <div class="absolute top-4 right-4 bg-white bg-opacity-90 px-4 py-2 rounded-lg shadow-md z-10">
+                <p class="text-sm font-medium text-gray-700">Click on markers for weather details</p>
+            </div>
+        </div>
+        
+        <!-- Current Weather -->
+        <div class="weather-card p-6 mb-8">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <!-- Left Section -->
+                <div class="text-center md:text-left mb-6 md:mb-0">
+                    <h2 id="city-name" class="text-3xl font-bold text-gray-800 mb-2">Dhaka</h2>
+                    <p id="current-date" class="text-gray-600 mb-4">Loading date...</p>
+                    <p id="weather-description" class="text-xl text-gray-700 capitalize">Loading weather...</p>
+                </div>
+                
+                <!-- Middle Section -->
+                <div class="flex items-center justify-center mb-6 md:mb-0">
+                    <div id="weather-icon-container" class="weather-icon weather-icon-big mr-4">
+                        <i id="weather-icon" class="fas fa-cloud text-6xl"></i>
+                    </div>
+                    <div class="temperature-display ml-4">
+                        <span id="temperature">--</span><span class="text-4xl">°C</span>
+                    </div>
+                </div>
+                
+                <!-- Right Section -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-temperature-low text-blue-500 mr-2"></i>
+                            <div>
+                                <p class="text-xs text-gray-500">Feels Like</p>
+                                <p id="feels-like" class="font-medium">--°C</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-tint text-blue-400 mr-2"></i>
+                            <div>
+                                <p class="text-xs text-gray-500">Humidity</p>
+                                <p id="humidity" class="font-medium">--%</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-wind text-blue-300 mr-2"></i>
+                            <div>
+                                <p class="text-xs text-gray-500">Wind Speed</p>
+                                <p id="wind-speed" class="font-medium">-- km/h</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white bg-opacity-70 p-3 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-cloud text-gray-400 mr-2"></i>
+                            <div>
+                                <p class="text-xs text-gray-500">Cloudiness</p>
+                                <p id="cloudiness" class="font-medium">--%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 5-Day Forecast -->
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+            5-Day Forecast <span class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-sm">3-hour intervals</span>
+        </h2>
+        
+        <div id="forecast" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-8">
+            <!-- Forecast items will be inserted here by JavaScript -->
+        </div>
+        
+        <!-- Additional Weather Info -->
+        <div class="weather-card p-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Weather Insights</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white bg-opacity-70 p-4 rounded-lg">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-sun text-yellow-400 text-xl mr-3 sun-animation"></i>
+                        <h4 class="font-medium text-gray-800">Sunrise & Sunset</h4>
+                    </div>
+                    <div class="flex justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500">Sunrise</p>
+                            <p id="sunrise" class="font-medium">--:--</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Sunset</p>
+                            <p id="sunset" class="font-medium">--:--</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white bg-opacity-70 p-4 rounded-lg">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-umbrella text-blue-400 text-xl mr-3 rain-animation"></i>
+                        <h4 class="font-medium text-gray-800">Precipitation</h4>
+                    </div>
+                    <div class="flex justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500">Rain (last 3h)</p>
+                            <p id="rain" class="font-medium">-- mm</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Pressure</p>
+                            <p id="pressure" class="font-medium">-- hPa</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white bg-opacity-70 p-4 rounded-lg">
+                    <div class="flex items-center mb-3">
+                        <i class="fas fa-eye text-gray-600 text-xl mr-3"></i>
+                        <h4 class="font-medium text-gray-800">Visibility</h4>
+                    </div>
+                    <div class="flex justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500">Visibility</p>
+                            <p id="visibility" class="font-medium">-- km</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">UV Index</p>
+                            <p id="uv-index" class="font-medium">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="mt-12 text-center text-gray-600 text-sm">
+            <p>© 2023 Bangladesh Weather Dashboard | Data provided by OpenWeatherMap</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Bangladesh divisions data with additional info
+        const divisions = [
+            { name: "Dhaka", lat: 23.8103, lon: 90.4125, population: "21 million", famous: "Lalbagh Fort, Ahsan Manzil" },
+            { name: "Chattogram", lat: 22.3569, lon: 91.7832, population: "8.5 million", famous: "Patenga Beach, Foy's Lake" },
+            { name: "Rajshahi", lat: 24.3745, lon: 88.6042, population: "1 million", famous: "Varendra Research Museum, Padma River" },
+            { name: "Khulna", lat: 22.8200, lon: 89.5500, population: "1.5 million", famous: "Sundarbans, Sixty Dome Mosque" },
+            { name: "Barishal", lat: 22.7010, lon: 90.3535, population: "0.5 million", famous: "Durga Sagar, Guthia Mosque" },
+            { name: "Sylhet", lat: 24.8917, lon: 91.8833, population: "1 million", famous: "Ratargul Swamp Forest, Jaflong" },
+            { name: "Rangpur", lat: 25.7439, lon: 89.2752, population: "0.8 million", famous: "Tajhat Palace, Vinnya Jagat" },
+            { name: "Mymensingh", lat: 24.7471, lon: 90.4203, population: "0.6 million", famous: "Brahmaputra River, Bangladesh Agricultural University" }
+        ];
+
+        // Enhanced weather icons mapping with animations
+        const weatherIcons = {
+            '01d': { icon: 'fas fa-sun', color: 'text-yellow-400', animation: 'sun-animation' },
+            '01n': { icon: 'fas fa-moon', color: 'text-gray-400', animation: '' },
+            '02d': { icon: 'fas fa-cloud-sun', color: 'text-yellow-300', animation: 'cloud-animation' },
+            '02n': { icon: 'fas fa-cloud-moon', color: 'text-gray-300', animation: 'cloud-animation' },
+            '03d': { icon: 'fas fa-cloud', color: 'text-gray-400', animation: 'cloud-animation' },
+            '03n': { icon: 'fas fa-cloud', color: 'text-gray-500', animation: 'cloud-animation' },
+            '04d': { icon: 'fas fa-cloud', color: 'text-gray-500', animation: 'cloud-animation' },
+            '04n': { icon: 'fas fa-cloud', color: 'text-gray-600', animation: 'cloud-animation' },
+            '09d': { icon: 'fas fa-cloud-rain', color: 'text-blue-400', animation: 'rain-animation' },
+            '09n': { icon: 'fas fa-cloud-rain', color: 'text-blue-500', animation: 'rain-animation' },
+            '10d': { icon: 'fas fa-cloud-showers-heavy', color: 'text-blue-500', animation: 'rain-animation' },
+            '10n': { icon: 'fas fa-cloud-showers-heavy', color: 'text-blue-600', animation: 'rain-animation' },
+            '11d': { icon: 'fas fa-bolt', color: 'text-yellow-500', animation: 'thunder-animation' },
+            '11n': { icon: 'fas fa-bolt', color: 'text-yellow-600', animation: 'thunder-animation' },
+            '13d': { icon: 'far fa-snowflake', color: 'text-blue-200', animation: 'snow-animation' },
+            '13n': { icon: 'far fa-snowflake', color: 'text-blue-100', animation: 'snow-animation' },
+            '50d': { icon: 'fas fa-smog', color: 'text-gray-300', animation: 'fog-animation' },
+            '50n': { icon: 'fas fa-smog', color: 'text-gray-400', animation: 'fog-animation' }
+        };
+
+        // Initialize map
+        const map = L.map('map').setView([23.6850, 90.3563], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Custom icon for markers
+        const weatherIcon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/1163/1163661.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+        });
+
+        // Add division markers with weather data
+        divisions.forEach(division => {
+            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${division.lat}&lon=${division.lon}&appid=5ab045bbcf781f7a13344f5061a86f81`)
+            .then(res => res.json())
+            .then(data => {
+                const temp = Math.round(data.main.temp - 273.15);
+                const iconCode = data.weather[0].icon;
+                const weatherDesc = data.weather[0].description;
+                const weatherIconData = weatherIcons[iconCode];
+                
+                const marker = L.marker([division.lat, division.lon], {icon: weatherIcon}).addTo(map)
+                    .bindPopup(
+                        `<div class="p-2">
+                            <h4 class="font-bold text-lg mb-2">${division.name}</h4>
+                            <div class="flex items-center mb-2">
+                                <i class="${weatherIconData.icon} ${weatherIconData.color} ${weatherIconData.animation} text-2xl mr-2"></i>
+                                <span class="text-gray-700 capitalize">${weatherDesc}</span>
+                            </div>
+                            <p class="text-2xl font-bold mb-2">${temp}°C</p>
+                            <div class="grid grid-cols-2 gap-2 text-sm">
+                                <div class="flex items-center">
+                                    <i class="fas fa-tint text-blue-400 mr-1"></i>
+                                    <span>${data.main.humidity}%</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-wind text-blue-300 mr-1"></i>
+                                    <span>${(data.wind.speed * 3.6).toFixed(1)} km/h</span>
+                                </div>
+                            </div>
+                            <hr class="my-2">
+                            <p class="text-xs text-gray-500"><strong>Population:</strong> ${division.population}</p>
+                            <p class="text-xs text-gray-500"><strong>Famous for:</strong> ${division.famous}</p>
+                            <button onclick="searchLocation('${division.name}')" 
+                                     class="w-full mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition">
+                                View Full Forecast
+                            </button>
+                        </div>`
+                    );
+            });
+        });
+
+        // Search function
+        function searchLocation(query) {
+            const division = divisions.find(d => d.name.toLowerCase() === query.toLowerCase());
+            if (division) {
+                updateWeather(division.lat, division.lon, division.name);
+                map.flyTo([division.lat, division.lon], 8);
+                return;
+            }
+
+            fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=1&appid=5ab045bbcf781f7a13344f5061a86f81`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length > 0) {
+                    updateWeather(data[0].lat, data[0].lon, data[0].name);
+                    map.flyTo([data[0].lat, data[0].lon], 11);
+                } else {
+                    alert('Location not found. Please try another city or division.');
+                }
+            });
+        }
+
+        // Update weather information
+        function updateWeather(lat, lon, name) {
+            // Current weather
+            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=5ab045bbcf781f7a13344f5061a86f81`)
+            .then(res => res.json())
+            .then(data => {
+                const temp = Math.round(data.main.temp - 273.15);
+                const feelsLike = Math.round(data.main.feels_like - 273.15);
+                const iconCode = data.weather[0].icon;
+                const weatherDesc = data.weather[0].description;
+                const weatherIconData = weatherIcons[iconCode];
+                
+                // Update current weather display
+                document.getElementById('city-name').textContent = name;
+                document.getElementById('temperature').textContent = temp;
+                document.getElementById('feels-like').textContent = `${feelsLike}°C`;
+                document.getElementById('humidity').textContent = `${data.main.humidity}%`;
+                document.getElementById('wind-speed').textContent = `${(data.wind.speed * 3.6).toFixed(1)} km/h`;
+                document.getElementById('cloudiness').textContent = `${data.clouds.all}%`;
+                document.getElementById('weather-description').textContent = weatherDesc;
+                
+                // Update weather icon with animation
+                const weatherIconEl = document.getElementById('weather-icon');
+                const weatherIconContainer = document.getElementById('weather-icon-container');
+                
+                // Reset classes
+                weatherIconEl.className = '';
+                weatherIconContainer.className = 'weather-icon weather-icon-big mr-4';
+                
+                // Add new classes
+                weatherIconEl.classList.add(weatherIconData.icon, weatherIconData.color);
+                weatherIconContainer.classList.add(weatherIconData.animation);
+                
+                // Update additional info
+                document.getElementById('sunrise').textContent = formatTime(data.sys.sunrise);
+                document.getElementById('sunset').textContent = formatTime(data.sys.sunset);
+                document.getElementById('pressure').textContent = data.main.pressure;
+                document.getElementById('visibility').textContent = (data.visibility / 1000).toFixed(1);
+                document.getElementById('rain').textContent = data.rain ? `${data.rain['1h'] || 0} mm` : '0 mm';
+                
+                // Update current date
+                const now = new Date();
+                document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                
+                // Change background based on time of day
+                const isDayTime = now.getHours() >= 6 && now.getHours() < 18;
+                document.body.className = isDayTime ? 'bg-gradient-weather' : 'bg-gradient-night';
+            });
+
+            // 5-day forecast
+            fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=5ab045bbcf781f7a13344f5061a86f81`)
+            .then(res => res.json())
+            .then(data => {
+                let forecastHTML = '';
+                const dailyForecasts = {};
+                
+                // Group forecasts by day
+                data.list.forEach(item => {
+                    const date = new Date(item.dt * 1000);
+                    const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    const dateStr = date.toLocaleDateString();
+                    
+                    if (!dailyForecasts[dateStr]) {
+                        dailyForecasts[dateStr] = {
+                            day: day,
+                            date: dateStr,
+                            temps: [],
+                            icons: [],
+                            descriptions: [],
+                            humidity: [],
+                            wind: []
+                        };
+                    }
+                    
+                    dailyForecasts[dateStr].temps.push(Math.round(item.main.temp - 273.15));
+                    dailyForecasts[dateStr].icons.push(item.weather[0].icon);
+                    dailyForecasts[dateStr].descriptions.push(item.weather[0].description);
+                    dailyForecasts[dateStr].humidity.push(item.main.humidity);
+                    dailyForecasts[dateStr].wind.push(item.wind.speed);
+                });
+                
+                // Create forecast items for each day
+                let dayCount = 0;
+                for (const date in dailyForecasts) {
+                    if (dayCount >= 5) break;
+                    
+                    const dayData = dailyForecasts[date];
+                    const avgTemp = Math.round(dayData.temps.reduce((a, b) => a + b, 0) / dayData.temps.length);
+                    const mainIcon = getMostFrequentIcon(dayData.icons);
+                    const mainDesc = getMostFrequentDescription(dayData.descriptions);
+                    const avgHumidity = Math.round(dayData.humidity.reduce((a, b) => a + b, 0) / dayData.humidity.length);
+                    const avgWind = (dayData.wind.reduce((a, b) => a + b, 0) / dayData.wind.length * 3.6).toFixed(1);
+                    
+                    const weatherIconData = weatherIcons[mainIcon];
+                    
+                    forecastHTML += 
+                        `<div class="forecast-item bg-white bg-opacity-70 p-4 rounded-lg text-center">
+                            <h4 class="font-medium text-gray-800 mb-2">${dayData.day}</h4>
+                            <div class="flex justify-center mb-2">
+                                <i class="${weatherIconData.icon} ${weatherIconData.color} ${weatherIconData.animation} text-3xl"></i>
+                            </div>
+                            <p class="text-sm text-gray-600 capitalize mb-1">${mainDesc}</p>
+                            <p class="text-2xl font-bold mb-2">${avgTemp}°C</p>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div class="flex items-center justify-center">
+                                    <i class="fas fa-tint text-blue-400 mr-1"></i>
+                                    <span>${avgHumidity}%</span>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <i class="fas fa-wind text-blue-300 mr-1"></i>
+                                    <span>${avgWind} km/h</span>
+                                </div>
+                            </div>
+                        </div>`;
+                    
+                    dayCount++;
+                }
+                
+                document.getElementById('forecast').innerHTML = forecastHTML;
+            });
+                    
+            // Get UV index (requires separate API call)
+            fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=5ab045bbcf781f7a13344f5061a86f81`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('uv-index').textContent = data.value ? data.value.toFixed(1) : '--';
+            });
+        }
+                
+        // Helper functions
+        function formatTime(timestamp) {
+            const date = new Date(timestamp * 1000);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+                
+        function getMostFrequentIcon(icons) {
+            const frequency = {};
+            icons.forEach(icon => {
+                frequency[icon] = (frequency[icon] || 0) + 1;
+            });
+            return Object.keys(frequency).reduce((a, b) => frequency[a] > frequency[b] ? a : b);
+        }
+                
+        function getMostFrequentDescription(descriptions) {
+            const frequency = {};
+            descriptions.forEach(desc => {
+                frequency[desc] = (frequency[desc] || 0) + 1;
+            });
+            return Object.keys(frequency).reduce((a, b) => frequency[a] > frequency[b] ? a : b);
+        }
+                
+        // Event listeners
+        document.getElementById('submit-button').addEventListener('click', () => {
+            const query = document.getElementById('input').value;
+            if (query) searchLocation(query);
+        });
+                
+        document.getElementById('input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = document.getElementById('input').value;
+                if (query) searchLocation(query);
+            }
+        });
+                
+        // Initial load
+        searchLocation('Dhaka');
+    </script>
+</body>
+</html>
